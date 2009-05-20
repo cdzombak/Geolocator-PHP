@@ -3,7 +3,7 @@
 /**
 	@file	IPGeolocation.class.php
 	@author	Chris Dzombak <chris@chrisdzombak.net>
-	@version	XXXX
+	@version	0.9
 	
 	@section LICENSE
 	
