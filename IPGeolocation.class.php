@@ -297,10 +297,11 @@ class IPGeolocation {
 		return array(
 			"$countryNameKey"	=> $this->xml->CountryName,
 			"$regionNameKey"	=> $this->xml->RegionName,
-			"$cityKey"		   => $this->xml->City,
+			"$cityKey"			=> $this->xml->City,
 			"$postalCodeKey"	=> $this->xml->ZipPostalCode,
 			"$latKey"			=> $this->xml->Latitude,
 			"$lonKey"			=> $this->xml->Longitude,
+			"$regionCodeKey"	=> $this->xml->RegionCode,
 			"$countryCodeKey"	=> $this->xml->CountryCode
 		);
 	}
