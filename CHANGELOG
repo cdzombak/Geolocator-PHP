@@ -1,0 +1,11 @@
+0.9 -> 0.99
+
+* Added a bit of documentation about region codes.
+  Basically, they seem to be internally useful to the API, but your app
+  should not need to use them.
+* Various documentation improvements.
+* Updated API endpoint URL.
+* Set a few more cURL options.
+* Added error handling around the cURL code.
+* Added capability to use the API's backup server.
+* A 1.0 release will follow barring any bug discoveries.

@@ -1,12 +1,34 @@
-<?php
+﻿<?php
 
 /**
-	@file	IPGeolocation.class.php
-	@author	Chris Dzombak <chris@chrisdzombak.net>
-	@version	XXXX
+	@mainpage
+	@file    IPGeolocation.class.php
+	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
+	@version 0.99
+	@date    June 26, 2009
+	
+	@section DESCRIPTION
+	
+	This class provides an interface to the IP Address Location XML API described
+	at <http://ipinfodb.com/ip_location_api.php>. It requires PHP 5 and cURL.
+	
+	Basic usage:
+		require_once('IPGeolocation.class.php');
+		$location = new IPGeolocation(IP);
+		(Do some error checking!);
+		$strCityStateCountry = $location->getFriendlyLocation();
+	
+	For documentation, we are using JavaDoc-style documentation with
+	JAVADOC_AUTOBRIEF=YES. A doxyfile for Doxygen is in the SVN repo.
+	
+	The Web site of this project is <http://projects.chrisdzombak.net/ipgeolocationphp>.
+	
+	@section CHANGELOG
+	
+	See the CHANGELOG file in the distbirution.
 	
 	@section LICENSE
-	
+
 	© 2009 Chris Dzombak
 	
 	This program is free software: you can redistribute it and/or modify
@@ -22,27 +44,8 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 	
-	(The GPL is stored in the text file COPYING which should accompany this
+	(The GPL is found in the text file COPYING which should accompany this
 	class.)
-	
-	@section DESCRIPTION
-	
-	This class provides an interface to the IP Address Location XML API described
-	at <http://iplocationtools.com/ip_location_api.php>.
-	
-	Basic usage:
-		require_once('IPGeolocation.class.php');
-		$location = new IPGeolocation(IP);
-		$strCityStateCountry = $location->getFriendlyLocation();
-	
-	TODO before 1.0:
-		- Learn more about country and region codes
-		- Better error handling in general
-		- Optimize curl options
-		- Handle curl errors
-	
-	For documentation, we are using JavaDoc-style documentation (I think) with
-	JAVADOC_AUTOBRIEF=YES.
 */
 
 /**
@@ -53,15 +56,16 @@
  * finds the physical location of that address and the class provides functions for
  * getting various bits of information about the location as well as a friendly
  * preformatted "city, state, country" location string.
- *
  */  
 
 class IPGeolocation {
 	
 	private $ip;			/**< IP address represented by the object */
 	private $xml;			/**< SimpleXML object used to parse the API response */
-	private $timeout = 15;	/**< CURL timeout */
-	private $serviceEndpoint = 'http://iplocationtools.com/ip_query.php';	/**< Endpoint of the geolocation API. This endpoint can also be <http://blogama.org/ip_query.php> */
+	private $connecttimeout = 5;	/**< cURL connect timeout (seconds) */
+	private $transfertimeout = 4; /**< cURL transfer timeout (seconds) */
+	private $primaryEndpoint = 'http://ipinfodb.com/ip_query.php';	/**< Endpoint of the geolocation API. */
+	private $backupEndpoint = 'http://backup.ipinfodb.com/ip_query.php'; /**< Endpoint of the API on a backup server. */
 	public  $error = false;	/**< Holds a string if there is an error in the class; remains FALSE if everything is OK */
 	
 	/**
@@ -77,20 +81,51 @@ class IPGeolocation {
 	{
 		$this->ip = $req_ip;
 		
-		$ch = curl_init();
-      	curl_setopt ($ch, CURLOPT_URL, "$serviceEndpoint?ip=$req_ip&output=xml");
-      	curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1);
-      	curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, $this->timeout);
-      	$response = curl_exec($ch);
-      	curl_close($ch);
+		if ($this->doCurl($this->primaryEndpoint) == true)
+		   return true;
 		
-      	$this->xml = new SimpleXMLElement($response);
+		$error = false;
+		
+		if ($this->doCurl($this->backupEndpoint) == true)
+		   return true;
+		
+		return false;
+	}
+	
+	/**
+	 * Attempts to use cURL to retrieve the XML from the API. Checks cURL for errors
+	 * and, if cURL was OK, creates the SimpleXMLElement and checks the XML for an OK status.
+	 * @param $endpoint The API endpoint to use.
+	 * @return true If request was successful.
+	 * @return false If request failed.
+	 */
+	private function doCurl($endpoint)
+	{
+	   $ch = curl_init();
+         curl_setopt ($ch, CURLOPT_URL, $endpoint . '?ip=' . $this->ip . '&output=xml');
+         curl_setopt ($ch, CURLOPT_FAILONERROR, TRUE);
+      	curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+      	curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
+      	curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, $this->connecttimeout);
+      	curl_setopt ($ch, CURLOPT_TIMEOUT, $this->timeout);
+      
+      $response = curl_exec($ch);
+		
+		if(curl_errno($ch))
+      {
+         $this->error = 'cURL error: ' . curl_error($ch);
+         return false;
+      }
+
+      curl_close($ch);
+		
+      $this->xml = new SimpleXMLElement($response);
 		if ($this->xml->Status != 'OK')
 		{
 			$this->error = 'Geolocation service did not return OK status.';
 			return false;
 		}
-		// todo: check for empty location strings as well. handle in TwitterOnAccess.
+		
 		return true;
 	}
 	
@@ -117,8 +152,8 @@ class IPGeolocation {
 	
 	/**
 	 * Gets the country code of the IP address.
-	 * Typically, this will return an abbreviation for the country. NOTE that the
-	 * API docs (which are weak) do not clearly specify this behavior.
+	 * Typically, this will return an abbreviation for the country. 
+	 * @note The (incomplete) API docs do not clearly specify this behavior.
 	 * @return The IP's country code (eg. US) in a string.
 	 */
 	public function getCountryCode()
@@ -148,9 +183,10 @@ class IPGeolocation {
 	
 	/**
 	 * Gets the IP's region (or state) code.
-	 * This will return whatever the API says is the region code. NOTE: this is
-	 * not clearly specified in the (weak) API docs; it is unclear what this does
-	 * some of the time.
+	 * This will return whatever the API says is the region code. 
+	 * @note The region code is not clearly specified in the (weak) API docs; it is 
+	 * unclear what this does. It looks like this is an internal reference. Your 
+	 * application should never need to access this.
 	 * @return The IP's region code.
 	 */
 	public function getRegionCode()
@@ -248,7 +284,7 @@ class IPGeolocation {
 	 * @param $regionNameKey		Array key for region name. Default "region". May be useful to redefine as "state".
 	 * @param $countryNameKey	Array key for country name. Default "country"
 	 * @param $cityKey			Array key for city name. Default "city"
-	 * @param	$postalCodeKey		Array key for postal/zip code. Default "postalCode"
+	 * @param $postalCodeKey		Array key for postal/zip code. Default "postalCode"
 	 * @param $latKey			Array key for latitude (returned in decimal format). Default "latitude"
 	 * @param $lonKey			Array key for longitude (returned in decimal format). Default "longitude"
 	 * @param $regionCodeKey		Array key for region code. Default "regionCode"
@@ -261,19 +297,16 @@ class IPGeolocation {
 		return array(
 			"$countryNameKey"	=> $this->xml->CountryName,
 			"$regionNameKey"	=> $this->xml->RegionName,
-			"$cityKey"		=> $this->xml->City,
+			"$cityKey"		   => $this->xml->City,
 			"$postalCodeKey"	=> $this->xml->ZipPostalCode,
 			"$latKey"			=> $this->xml->Latitude,
 			"$lonKey"			=> $this->xml->Longitude,
-			"$regionCodeKey"	=> $this->xml->RegionCode,
 			"$countryCodeKey"	=> $this->xml->CountryCode
 		);
 	}
 	
 	/**
 	 * Gets the IP address associated with the object.
-	 * This might be useful, for example, if looping through an array of IPGeolocation
-	 * objects, or if the original IP was somehow "lost" in the user's code.
 	 * @return The IP address whose location the object describes. String.
 	 */	 	 	 	 	
 	public function getIP() {
