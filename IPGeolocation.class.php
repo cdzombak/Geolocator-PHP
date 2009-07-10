@@ -1,11 +1,15 @@
-﻿<?php
+<?php
 
 /**
 	@mainpage
 	@file    IPGeolocation.class.php
 	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
-	@version 0.99
-	@date    June 26, 2009
+	@version (dev)
+	@date    July 9, 2009
+	
+	@package 	IPGeolocation PHP
+	@copyright	(c) 2009 Chris Dzombak; released under the GPLv3
+	@link		http://projects.chrisdzombak.net/ipgeolocationphp
 	
 	@section DESCRIPTION
 	
@@ -101,25 +105,25 @@ class IPGeolocation {
 	 */
 	private function doCurl($endpoint)
 	{
-	   $ch = curl_init();
-         curl_setopt ($ch, CURLOPT_URL, $endpoint . '?ip=' . $this->ip . '&output=xml');
-         curl_setopt ($ch, CURLOPT_FAILONERROR, TRUE);
-      	curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, TRUE);
-      	curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
-      	curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, $this->connecttimeout);
-      	curl_setopt ($ch, CURLOPT_TIMEOUT, $this->timeout);
-      
-      $response = curl_exec($ch);
+		$ch = curl_init();
+			curl_setopt ($ch, CURLOPT_URL, $endpoint . '?ip=' . $this->ip . '&output=xml');
+			curl_setopt ($ch, CURLOPT_FAILONERROR, TRUE);
+			curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+			curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
+			curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, $this->connecttimeout);
+			curl_setopt ($ch, CURLOPT_TIMEOUT, $this->timeout);
+		
+		$response = curl_exec($ch);
 		
 		if(curl_errno($ch))
-      {
-         $this->error = 'cURL error: ' . curl_error($ch);
-         return false;
-      }
+		{
+			$this->error = 'cURL error: ' . curl_error($ch);
+			return false;
+		}
 
-      curl_close($ch);
+		curl_close($ch);
 		
-      $this->xml = new SimpleXMLElement($response);
+		$this->xml = new SimpleXMLElement($response);
 		if ($this->xml->Status != 'OK')
 		{
 			$this->error = 'Geolocation service did not return OK status.';
