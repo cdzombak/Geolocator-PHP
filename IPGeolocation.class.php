@@ -143,15 +143,15 @@ class IPGeolocation {
 	public function getFriendlyLocation()
 	{
 		$country = $this->xml->CountryName;
-     	$region = $this->xml->RegionName;
-     	$city = $this->xml->City;
-     	if ($city == '' && $region == '')
-     		$loc = $country;
-     	else if ($city == '')
-     		$loc = "$region, $country";
-     	else
-     		$loc = "$city, $region, $country";
-     	return $loc;
+    	$region = $this->xml->RegionName;
+    	$city = $this->xml->City;
+    	if ($city == '' && $region == '')
+    		$loc = $country;
+    	else if ($city == '')
+    		$loc = "$region, $country";
+    	else
+    		$loc = "$city, $region, $country";
+		return $loc;
 	}
 	
 	/**
