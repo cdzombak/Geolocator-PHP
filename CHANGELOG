@@ -1,3 +1,10 @@
+0.99 -> 1.0
+
+* Fixed some whitespace/formatting issues
+* Add some @doc tags to documentation
+* Removed strange, trouble-causing characters from beginning of file
+* Moved to git/github for SCM
+
 0.9 -> 0.99
 
 * Added a bit of documentation about region codes.

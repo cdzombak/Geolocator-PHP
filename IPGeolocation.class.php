@@ -4,12 +4,8 @@
 	@mainpage
 	@file    IPGeolocation.class.php
 	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
-	@version (dev)
-	@date    July 9, 2009
-	
-	@package 	IPGeolocation PHP
-	@copyright	(c) 2009 Chris Dzombak; released under the GPLv3
-	@link		http://projects.chrisdzombak.net/ipgeolocationphp
+	@version 1.0
+	@date    July 11, 2009
 	
 	@section DESCRIPTION
 	
