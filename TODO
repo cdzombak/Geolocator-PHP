@@ -1,0 +1,14 @@
+TODO:
+- Use libxml2-style XMLReader for smaller memory footprint and more efficiency
+- UTF-8
+- Domain lookup
+- Multiple lookups
+- ip_query2
+- country precision
+- caching? cookies?
+
+
+DONE (changes since last release):
+- added Gmtoffset and Dstoffset info
+- Changed to make easier to move to a SAX parser in the future
+- Added tests.

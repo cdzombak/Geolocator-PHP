@@ -4,8 +4,8 @@
 	@mainpage
 	@file    IPGeolocation.class.php
 	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
-	@version 1.0
-	@date    July 11, 2009
+	@version dev
+	@date    July 21, 2009
 	
 	@section DESCRIPTION
 	
@@ -19,7 +19,7 @@
 		$strCityStateCountry = $location->getFriendlyLocation();
 	
 	For documentation, we are using JavaDoc-style documentation with
-	JAVADOC_AUTOBRIEF=YES. A doxyfile for Doxygen is in the SVN repo.
+	JAVADOC_AUTOBRIEF=YES. A Doxyfile is provided.
 	
 	The Web site of this project is <http://projects.chrisdzombak.net/ipgeolocationphp>.
 	
@@ -60,13 +60,17 @@
 
 class IPGeolocation {
 	
-	private $ip;			/**< IP address represented by the object */
-	private $xml;			/**< SimpleXML object used to parse the API response */
-	private $connecttimeout = 5;	/**< cURL connect timeout (seconds) */
-	private $transfertimeout = 4; /**< cURL transfer timeout (seconds) */
-	private $primaryEndpoint = 'http://ipinfodb.com/ip_query.php';	/**< Endpoint of the geolocation API. */
-	private $backupEndpoint = 'http://backup.ipinfodb.com/ip_query.php'; /**< Endpoint of the API on a backup server. */
-	public  $error = false;	/**< Holds a string if there is an error in the class; remains FALSE if everything is OK */
+	private $ip;						/**< IP address represented by the object */
+	private $xml;						/**< SimpleXML object used for parsing. */
+	private $rawXml				= '';	/**< Raw XML data from the API endpoint */
+	private $connecttimeout		= 5;	/**< cURL connect timeout (seconds) */
+	private $transfertimeout	= 4;	/**< cURL transfer timeout (seconds) */
+	private $primaryEndpoint	= 'http://ipinfodb.com/ip_query.php';			/**< Endpoint of the geolocation API. */
+	private $backupEndpoint		= 'http://backup.ipinfodb.com/ip_query.php';	/**< Endpoint of the API on a backup server. */
+	private $endpointUsed		= '';											/**< Endpoint which was successfully queried. */
+	private $properties			= array();	/**< Array which will hold the location properties. */
+	
+	public  $error = false;			/**< Holds a string if there is an error in the class; remains FALSE if everything is OK */
 	
 	/**
 	 * IPGeolocation constructor.
@@ -81,23 +85,62 @@ class IPGeolocation {
 	{
 		$this->ip = $req_ip;
 		
-		if ($this->doCurl($this->primaryEndpoint) == true)
-		   return true;
-		
-		$error = false;
-		
-		if ($this->doCurl($this->backupEndpoint) == true)
-		   return true;
-		
-		return false;
+		if ($this->doCurl($this->primaryEndpoint) == false)
+		{
+			// primary server failed
+			unset($this->rawXml);
+			$this->error = false;
+			if ($this->doCurl($this->backupEndpoint) == false)
+			{
+				//backup endpoint failed
+				unset($this->rawXml);
+				return false;
+			}
+			else
+			{
+				// backup server OK
+				$this->endpointUsed = $this->backupEndpoint;
+				if ($this->doParse() == true)
+					return true;
+				else
+					return false;
+			}
+		}
+		else
+		{
+			// primary server OK
+			$this->endpointUsed = $this->primaryEndpoint;
+			if ($this->doParse() == true)
+				return true;
+			else
+				return false;
+		}
 	}
 	
 	/**
-	 * Attempts to use cURL to retrieve the XML from the API. Checks cURL for errors
-	 * and, if cURL was OK, creates the SimpleXMLElement and checks the XML for an OK status.
+	 * Parses the XML data into IP info.
+	 * Right now, creates SimpleXML object, but will soon parse XML using libxml2.
+	 *
+	 * @return True if parsing was successful.
+	 * @return False if parsing was not successful ($this->error will be set).
+	 */
+	private function doParse()
+	{
+		$this->xml = new SimpleXMLElement($this->rawXml);	// legacy
+		unset($this->rawXml);
+				
+		if ($this->xml->Status != 'OK')
+		{
+			$this->error = 'Geolocation service did not return OK status.';
+			return false;
+		}
+	}
+	
+	/**
+	 * Attempts to use cURL to retrieve the XML from the API. Checks cURL for errors.
 	 * @param $endpoint The API endpoint to use.
 	 * @return true If request was successful.
-	 * @return false If request failed.
+	 * @return false If request failed. $this->error will be set to cURL error message.
 	 */
 	private function doCurl($endpoint)
 	{
@@ -109,22 +152,16 @@ class IPGeolocation {
 			curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, $this->connecttimeout);
 			curl_setopt ($ch, CURLOPT_TIMEOUT, $this->timeout);
 		
-		$response = curl_exec($ch);
+		$this->rawXml = curl_exec($ch);
 		
 		if(curl_errno($ch))
 		{
-			$this->error = 'cURL error: ' . curl_error($ch);
+			$this->error = 'cURL failed. Error: ' . curl_error($ch);
+			curl_close($ch);
 			return false;
 		}
 
 		curl_close($ch);
-		
-		$this->xml = new SimpleXMLElement($response);
-		if ($this->xml->Status != 'OK')
-		{
-			$this->error = 'Geolocation service did not return OK status.';
-			return false;
-		}
 		
 		return true;
 	}
@@ -179,6 +216,26 @@ class IPGeolocation {
 	public function getRegion()
 	{
 		return $this->xml->RegionName;
+	}
+	
+	/**
+	 * Gets the GMT offset for the IP address.
+	 * @return The GMT offset for the IP address.
+	 * @see getDstOffset()
+	 */
+	public function getGmtOffset()
+	{
+		return $this->xml->Gmtoffset;
+	}
+	
+	/**
+	 * Gets the DST offset for the IP address.
+	 * @return The DST offset for the IP address.
+	 * @see getDstOffset()
+	 */
+	public function getDstOffset()
+	{
+		return $this->xml->Dstoffset;
 	}
 	
 	/**
@@ -281,18 +338,20 @@ class IPGeolocation {
 	 * are country name, country code, region/state name, region/state code, city, zip/postal
 	 * code, latitude (approx), longitude (approx).
 	 * 
-	 * @param $regionNameKey		Array key for region name. Default "region". May be useful to redefine as "state".
+	 * @param $regionNameKey	Array key for region name. Default "region". May be useful to redefine as "state".
 	 * @param $countryNameKey	Array key for country name. Default "country"
 	 * @param $cityKey			Array key for city name. Default "city"
-	 * @param $postalCodeKey		Array key for postal/zip code. Default "postalCode"
+	 * @param $postalCodeKey	Array key for postal/zip code. Default "postalCode"
 	 * @param $latKey			Array key for latitude (returned in decimal format). Default "latitude"
 	 * @param $lonKey			Array key for longitude (returned in decimal format). Default "longitude"
-	 * @param $regionCodeKey		Array key for region code. Default "regionCode"
+	 * @param $regionCodeKey	Array key for region code. Default "regionCode"
 	 * @param $countryCodeKey	Array key for country code. Default "countryCode"
+	 * @param $gmtOffsetKey		Array key for GMT offset. Default "gmtOffset"
+	 * @param $dstOffsetKey		Array key for DST offset. Default "dstOffset"
 	 * 
 	 * @return Associative array containing all location data returned by the API.
 	 */	 
-	public function getLocationProperties($regionNameKey='region', $countryNameKey='country', $cityKey='city', $postalCodeKey='postalCode', $latKey='latitude', $lonKey='longitude', $regionCodeKey='regionCode', $countryCodeKey='countryCode')
+	public function getLocationProperties($regionNameKey='region', $countryNameKey='country', $cityKey='city', $postalCodeKey='postalCode', $latKey='latitude', $lonKey='longitude', $regionCodeKey='regionCode', $countryCodeKey='countryCode', $gmtOffsetKey='gmtOffset', $dstOffsetKey='dstOffset')
 	{
 		return array(
 			"$countryNameKey"	=> $this->xml->CountryName,
