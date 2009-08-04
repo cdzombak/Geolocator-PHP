@@ -150,7 +150,7 @@ class IPGeolocation {
 			curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, TRUE);
 			curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
 			curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, $this->connecttimeout);
-			curl_setopt ($ch, CURLOPT_TIMEOUT, $this->timeout);
+			curl_setopt ($ch, CURLOPT_TIMEOUT, $this->transfertimeout);
 		
 		$this->rawXml = curl_exec($ch);
 		
