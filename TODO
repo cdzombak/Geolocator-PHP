@@ -1,17 +1,9 @@
 TODO:
-* Make sure we set/check that data are valid everywhere
-* Overall docs on how the class now works
-* Iterator/array functionality (lookup is performed automatically when it's first accessed)
+* 2.0-ALPHA-1.9: Function/class docs
+* 2.0-ALPHA-1.9: use phpDocumentor for docs
+* 2.0-ALPHA-2: Iterator/array functionality (lookup is performed automatically when it's first accessed)
   * http://us3.php.net/manual/en/class.arrayobject.php
   * http://www.php.net/manual/en/language.oop5.iterations.php
   * http://us2.php.net/manual/en/class.iterator.php
   * http://pecl.php.net/package/operator
-* Better GeolocationException class
-* Function docs
-* phpDocumentor docs
-* Should I be autoloading anyhing?
-  * http://php.net/manual/en/language.oop5.autoload.php
-* Known issue: you cannot look up domains with country precision
-* Implement 25 limit on # IPs for multiple lookup
-* UTF-8
-* Error checking on API returns
+* 2.0-ALPHA-2: Overall docs on how the class now works

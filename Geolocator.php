@@ -1,15 +1,13 @@
 <?php
 
 require_once('GeolocatorException.php');
-
-// @TODO Geolocation class for returns?
-// require_once('Geolocation.php');
+require_once('Geolocation.php');
 
 /**
 	@mainpage
 	@file    Geolocator.php
 	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
-	@version 2.0-alpha-1
+	@version 2.0-alpha-1.5
 	@date    January 29, 2010
 	
 	@section DESCRIPTION
@@ -57,6 +55,7 @@ class Geolocator {
 	private $attemptedLookup  = false;    /**< Whether the geolocator has attempted a lookup */
 	private $precision        = self::PRECISION_CITY;   /**< desired lookup precision */
 	private $result;
+	private $useBackupFirst   = false;
 	
 	private $connectTimeout   = 2;  /**< cURL connect timeout (seconds) */
 	private $transferTimeout  = 3;  /**< cURL transfer timeout (seconds) */
@@ -74,8 +73,8 @@ class Geolocator {
 	 * @param $req String of one IP/domain to lookup OR an array of IPs/domains to lookup
 	 * @return void
 	 */
-	 // @TODO should not require that something be passed in
 	function __construct($req) {
+		// @TODO eventually, should not require that something be passed in
 		if (is_array($req)) {
 			foreach ($req as $ip) {
 				$this->addIp($ip);
@@ -86,6 +85,10 @@ class Geolocator {
 	}
 	
 	public function addIp($ip) {
+		if(count($this->ips) >= 25) {
+			return false;
+		}
+		
 		$this->hasData = false;
 		$this->attemptedLookup = false;
 		
@@ -94,28 +97,47 @@ class Geolocator {
 		if (!array_key_exists($ip, $this->ips)) {
 			$this->ips[$ip] = NULL;
 		}
+		
+		return true;
+	}
+	
+	public function getIpCount() {
+		return count($this->ips);
 	}
 	
 	public function getAllLocations() {
 		if (!$this->hasData) {
-			if (!$this->lookup()) {
-				throw new GeolocatorException('Automatic call to lookup() failed');
-			}
+			$this->lookup();
 		}
 		return $this->ips;
 	}
 	
 	public function getLocation($ip) {
 		if (!$this->hasData) {
-			if (!$this->lookup()) {
-				throw new GeolocatorException('Automatic call to lookup() failed');
-			}
+			$this->lookup();
 		}
 		$ip = $this->cleanIpInput($ip);
 		if (array_key_exists($ip, $this->ips)) {
 			return $this->ips[$ip];
 		}
 		return NULL;
+	}
+	
+	/**
+	 * Tells the Geolocator whether to lookup the IP on the backup server first
+	 *
+	 * This could be ueful for Europe-based services, since the backup server
+	 * is located in Germany and the primary is located in Canada.  Using the backup
+	 * server for European apps will give you slightly higher performance.
+	 *
+	 * @param bool $useB whether to use the backup server as primary
+	 * @return void
+	 */
+	public function setUseBackupFirst($useB) {
+		if (!is_bool($useB)) {
+			throw new GeolocatorException('Invalid choice specified for useBackupFirst');
+		}
+		$this->useBackupFirst = $useB;
 	}
 	
 	/**
@@ -187,10 +209,8 @@ class Geolocator {
 	 * @return bool
 	 */
 	public function lookup() {
-		$this->attemptedLookup = true;
-		
 		$endpointFile = NULL;
-		if (count($this->ips) == 1) {
+/*		if (count($this->ips) == 1) {
 			switch ($this->precision) {
 				case self::PRECISION_CITY:
 					$endpointFile = self::IPQUERY;
@@ -202,22 +222,27 @@ class Geolocator {
 					throw new GeolocatorException('Internal error: $this->precision is invalid: ' . $this->precision);
 					break;
 			}
-		} else {
-			switch ($this->precision) {
-				case self::PRECISION_CITY:
-					$endpointFile = self::IPQUERY_2;
-					break;
-				case self::PRECISION_COUNTRY:
-					$endpointFile = self::IPQUERY_2_COUNTRY;
-					break;
-				default:
-					throw new GeolocatorException('Internal error: $this->precision is invalid: ' . $this->precision);
-					break;
-			}
+		} else {*/
+		switch ($this->precision) {
+			case self::PRECISION_CITY:
+				$endpointFile = self::IPQUERY_2;
+				break;
+			case self::PRECISION_COUNTRY:
+				$endpointFile = self::IPQUERY_2_COUNTRY;
+				break;
+			default:
+				throw new GeolocatorException('Internal error: $this->precision is invalid: ' . $this->precision);
+				break;
 		}
+		/* }*/
 		
-		$endpoint       = self::PRIMARY_SERVER . $endpointFile;
-		$backupEndpoint = self::BACKUP_SERVER . $endpointFile;
+		if (!$this->useBackupFirst) {
+			$endpoint       = self::PRIMARY_SERVER . $endpointFile;
+			$backupEndpoint = self::BACKUP_SERVER . $endpointFile;
+		} else {
+			$backupEndpoint = self::PRIMARY_SERVER . $endpointFile;
+			$endpoint       = self::BACKUP_SERVER . $endpointFile;
+		}
 		
 		$ipString = '';
 		if (count($this->ips) == 1) {
@@ -229,32 +254,42 @@ class Geolocator {
 			$ipString = substr($ipString, 1);
 		}
 		
-		if (!$this->curlRequest($ipString, $endpoint)) {
+		$result = NULL;
+		try {
+			$result = $this->curlRequest($ipString, $endpoint);
+		} catch (GeolocatorException $e) {
 			// primary server failed; try backup
-			if (!$this->curlRequest($ipString,$backupEndpoint)) {
-				//backup endpoint failed; return false
-				return false;
+			try {
+				$result = $this->curlRequest($ipString,$backupEndpoint);
+			} catch (GeolocatorException $e) {
+				throw $e;
 			}
 		}
 		
-		$this->parseIntoIps();
+		$this->attemptedLookup = true;
+		
+		$this->parseIntoIps($result);
 		return true;
 	}
 	
-	private function parseIntoIps() {
+	private function parseIntoIps($locArray) {
 		$i = 0;
 		foreach ($this->ips as &$ip) {
-			$ip = $this->result->Locations[$i];
+			if ($locArray->Locations[$i]->Status == 'OK') {
+				$ip = new Geolocation($locArray->Locations[$i], $this->precision);
+			} else {
+				error_log('API returned error for ' . $locArray->Locations[$i]->Ip . ' : ' . $locArray->Locations[$i]->Status . ' . Precision: ' . $this->precision);
+				$ip = NULL;
+			}
 			$i++;
 		}
-		unset($this->result);
 		$this->hasData = true;
 	}
 	
 	private function curlRequest($ipQueryString, $endpoint) {
-		// @TODO error handling in this function
+		$qs = $endpoint . '?ip=' . $ipQueryString . '&output=json';
 		$ch = curl_init();
-			curl_setopt ($ch, CURLOPT_URL, $endpoint . '?ip=' . $ipQueryString . '&output=json');
+			curl_setopt ($ch, CURLOPT_URL, $qs);
 			curl_setopt ($ch, CURLOPT_FAILONERROR, TRUE);
 			curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, TRUE);
 			curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
@@ -263,18 +298,15 @@ class Geolocator {
 		
 		$json = curl_exec($ch);
 		
-		if(curl_errno($ch)) {
-			//throw new GeolocatorException('cURL failed. Error: ' . curl_error($ch));
+		if(curl_errno($ch) || $json === FALSE) {
+			$err = curl_error($ch);
 			curl_close($ch);
-			return false;
+			throw new GeolocatorException('cURL failed. Error: ' . $err);
 		}
 
 		curl_close($ch);
 		
-		$this->result = json_decode($json);
-		// @TODO validate result
-		
-		return true;
+		return json_decode($json);
 	}
 	
 	private function firstIp() {
