@@ -19,10 +19,6 @@ require_once('GeolocatorException.php');
 	
 	The Web site of this project is: http://projects.chrisdzombak.net/ipgeolocationphp
 	
-	@section CHANGELOG
-	
-	See the CHANGELOG file in the distbirution.
-	
 	@section LICENSE
 
 	© 2009-2010 Chris Dzombak
@@ -66,14 +62,12 @@ class Geolocator {
 	private $connectTimeout   = 2;  /**< cURL connect timeout (seconds) */
 	private $transferTimeout  = 3;  /**< cURL transfer timeout (seconds) */
 	
-	// @TODO: convert the following to constants?
-	private $primaryServer    = 'http://ipinfodb.com/';
-	private $backupServer     = 'http://backup.ipinfodb.com/';
-	
-	private $ipquery          = 'ip_query.php';
-	private $ipquery2         = 'ip_query2.php';
-	private $ipqueryCountry   = 'ip_query_country.php';
-	private $ipquery2Country  = 'ip_query2_country.php';
+	const PRIMARY_SERVER      = 'http://ipinfodb.com/';
+	const BACKUP_SERVER       = 'http://backup.ipinfodb.com/';
+	const IPQUERY             = 'ip_query.php';
+	const IPQUERY_2           = 'ip_query2.php';
+	const IPQUERY_COUNTRY     = 'ip_query_country.php';
+	const IPQUERY_2_COUNTRY   = 'ip_query2_country.php';
 	
 	/**
 	 * Geolocator constructor.
@@ -92,11 +86,9 @@ class Geolocator {
 		}
 	}
 	
-	public function addIp($ip)
-	{
-		if ($this->attemptedLookup) {
-			throw new GeolocatorException('A lookup has already been attempted; new IPs cannot be added.');
-		}
+	public function addIp($ip) {
+		$this->hasData = false;
+		$this->attemptedLookup = false;
 		
 		$ip = $this->cleanIpInput($ip);
 		
@@ -106,11 +98,20 @@ class Geolocator {
 	}
 	
 	public function getAllLocations() {
-		// @TODO check if data are valid
+		if (!$this->hasData) {
+			if (!$this->lookup()) {
+				throw new GeolocatorException('Automatic call to lookup() failed');
+			}
+		}
 		return $this->ips;
 	}
 	
 	public function getLocation($ip) {
+		if (!$this->hasData) {
+			if (!$this->lookup()) {
+				throw new GeolocatorException('Automatic call to lookup() failed');
+			}
+		}
 		$ip = $this->cleanIpInput($ip);
 		if (array_key_exists($ip, $this->ips)) {
 			return $this->ips[$ip];
@@ -129,7 +130,12 @@ class Geolocator {
 	 * @throws GeolocatorException
 	 */
 	public function setTimeout($timeoutType, $time) {
-		// @TODO validate time
+		$this->hasData = false;
+		$this->attemptedLookup = false;
+		
+		if (!is_numeric($time) || $time < 0) {
+			throw new GeolocatorException ('Invalid time specified.');
+		}
 		if ($timeoutType == self::CONNECT_TIMEOUT) {
 			$this->connectTimeout = $time;
 		} else if ($timeoutType == self::TRANSFER_TIMEOUT) {
@@ -149,6 +155,9 @@ class Geolocator {
 	 * @throws GeolocatorException
 	 */
 	public function setPrecision($precision) {
+		$this->hasData = false;
+		$this->attemptedLookup = false;
+		
 		if ($precision == self::PRECISION_CITY || $precision == self::PRECISION_COUNTRY) {
 			$this->precision = $precision;
 		} else {
@@ -179,14 +188,16 @@ class Geolocator {
 	 * @return bool
 	 */
 	public function lookup() {
+		$this->attemptedLookup = true;
+		
 		$endpointFile = NULL;
 		if (count($this->ips) == 1) {
 			switch ($this->precision) {
 				case self::PRECISION_CITY:
-					$endpointFile = $this->ipquery;
+					$endpointFile = self::IPQUERY;
 					break;
 				case self::PRECISION_COUNTRY:
-					$endpointFile = $this->ipqueryCountry;
+					$endpointFile = self::IPQUERY_COUNTRY;
 					break;
 				default:
 					throw new GeolocatorException('Internal error: $this->precision is invalid: ' . $this->precision);
@@ -195,10 +206,10 @@ class Geolocator {
 		} else {
 			switch ($this->precision) {
 				case self::PRECISION_CITY:
-					$endpointFile = $this->ipquery2;
+					$endpointFile = self::IPQUERY_2;
 					break;
 				case self::PRECISION_COUNTRY:
-					$endpointFile = $this->ipquery2Country;
+					$endpointFile = self::IPQUERY_2_COUNTRY;
 					break;
 				default:
 					throw new GeolocatorException('Internal error: $this->precision is invalid: ' . $this->precision);
@@ -206,8 +217,8 @@ class Geolocator {
 			}
 		}
 		
-		$endpoint       = $this->primaryServer . $endpointFile;
-		$backupEndpoint = $this->backupServer . $endpointFile;
+		$endpoint       = self::PRIMARY_SERVER . $endpointFile;
+		$backupEndpoint = self::BACKUP_SERVER . $endpointFile;
 		
 		$ipString = '';
 		if (count($this->ips) == 1) {
@@ -238,6 +249,7 @@ class Geolocator {
 			$i++;
 		}
 		unset($this->result);
+		$this->hasData = true;
 	}
 	
 	private function curlRequest($ipQueryString, $endpoint) {
