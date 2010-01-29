@@ -7,7 +7,7 @@ require_once('GeolocatorException.php');
 
 /**
 	@mainpage
-	@file    Geolocator.class.php
+	@file    Geolocator.php
 	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
 	@version 2.0-alpha-1
 	@date    January 29, 2010
@@ -42,7 +42,6 @@ require_once('GeolocatorException.php');
 
 /**
  * @class Geolocator
- *
  */  
 
 class Geolocator {
