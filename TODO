@@ -1,14 +1,15 @@
 TODO:
-- Use libxml2-style XMLReader for smaller memory footprint and more efficiency
-- UTF-8
-- Domain lookup
-- Multiple lookups
-- ip_query2
-- country precision
-- caching? cookies?
-
-
-DONE (changes since last release):
-- added Gmtoffset and Dstoffset info
-- Changed to make easier to move to a SAX parser in the future
-- Added tests.
+* Make sure we set/check that data are valid everywhere
+* Overall docs on how the class now works
+* Iterator/array functionality (lookup is performed automatically when it's first accessed)
+  * http://us3.php.net/manual/en/class.arrayobject.php
+  * http://www.php.net/manual/en/language.oop5.iterations.php
+  * http://us2.php.net/manual/en/class.iterator.php
+  * http://pecl.php.net/package/operator
+* Better GeolocationException class
+* Function docs
+* phpDocumentor docs
+* Should I be autoloading anyhing?
+  * http://php.net/manual/en/language.oop5.autoload.php
+* UTF-8
+* Error checking on API returns

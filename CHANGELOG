@@ -1,8 +1,20 @@
+1.0 -> 2.0-alpha-1
+* Not API-compatible with v1
+* Name changed to Geolocator PHP
+* one Geolocator can be used to find multiple locations in one lookup
+* Supports country precision
+* Supports looking up domains
+* More efficient internal operation
+* More intuitive, object-oriented API usage
+* Fix PHP notice about $this->timeout being undefined. (actually fixed a while ago)
+* Note: I considered adding some form of caching to this system earlier, but I've since 
+  decided caching would be out of this project's scope.
+
 0.99 -> 1.0
 
 * Fixed some whitespace/formatting issues
 * Add some @doc tags to documentation
-* Removed strange, trouble-causing characters from beginning of file
+* Removed problematic invisible characters from beginning of file
 * Moved to git/github for SCM
 
 0.9 -> 0.99
