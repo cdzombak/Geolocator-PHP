@@ -16,7 +16,7 @@ require_once('Geolocation.php');
 	@section DESCRIPTION
 	
 	This class provides an interface to the IP Address Location XML API described
-	at <http://ipinfodb.com/ip_location_api.php>. It requires PHP 5 and cURL.
+	at <http://ipinfodb.com/ip_location_api.php>. It requires PHP 5.30+ and cURL.
 	
 	The Web site of this project is: <http://projects.chrisdzombak.net/ipgeolocationphp>
 	
@@ -112,49 +112,6 @@ class Geolocator {
 	}
 	
 	/**
-	 * Get the number of IPs/domains represented by the Geolocator.
-	 *
-	 * Use to make sure you don't add more than 25.
-	 *
-	 * @return int
-	 */
-	public function getIpCount() {
-		return count($this->ips);
-	}
-	
-	/**
-	 * Get all locations represented by the Geolocator.
-	 *
-	 * Returns an associative array, indexed by IP/domain, of Geolocation objects.
-	 *
-	 * @return array
-	 */
-	public function getAllLocations() {
-		if (!$this->hasData) {
-			$this->lookup();
-		}
-		return $this->ips;
-	}
-	
-	/**
-	 * Get the location for one IP/domain.
-	 *
-	 * Returns a Geolocation object or NULL.
-	 *
-	 * @return mixed
-	 */
-	public function getLocation($ip) {
-		if (!$this->hasData) {
-			$this->lookup();
-		}
-		$ip = $this->cleanIpInput($ip);
-		if (array_key_exists($ip, $this->ips)) {
-			return $this->ips[$ip];
-		}
-		return NULL;
-	}
-	
-	/**
 	 * Tells the Geolocator whether to lookup the IP on the backup server first.
 	 *
 	 * This could be ueful for Europe-based services, since the backup server
@@ -238,6 +195,49 @@ class Geolocator {
 	}
 	
 	/**
+	 * Get the number of IPs/domains represented by the Geolocator.
+	 *
+	 * Use to make sure you don't add more than 25.
+	 *
+	 * @return int
+	 */
+	public function getIpCount() {
+		return count($this->ips);
+	}
+	
+	/**
+	 * Get all locations represented by the Geolocator.
+	 *
+	 * Returns an associative array, indexed by IP/domain, of Geolocation objects.
+	 *
+	 * @return array
+	 */
+	public function getAllLocations() {
+		if (!$this->hasData) {
+			$this->lookup();
+		}
+		return $this->ips;
+	}
+	
+	/**
+	 * Get the location for one IP/domain.
+	 *
+	 * Returns a Geolocation object or NULL.
+	 *
+	 * @return mixed
+	 */
+	public function getLocation($ip) {
+		if (!$this->hasData) {
+			$this->lookup();
+		}
+		$ip = $this->cleanIpInput($ip);
+		if (array_key_exists($ip, $this->ips)) {
+			return $this->ips[$ip];
+		}
+		return NULL;
+	}
+	
+	/**
 	 * Performs the lookup of all desired IPs/domains.
 	 *
 	 * Should be called once you know you're done adding IPs so that the lookup data
@@ -295,6 +295,20 @@ class Geolocator {
 		$this->parseIntoIps($result);
 		return true;
 	}
+	
+	/**
+	 * Filters and cleans up an IP/domain input string.
+	 *
+	 * @param $input
+	 * @return string
+	 */
+	public static function cleanIpInput($input) {
+		$input = strtolower($input);
+		$input = trim($input);
+		return $input;
+	}
+	
+	// Private functions:
 	
 	/**
 	 * Parses a given array of locations into the $this->ips array.
@@ -357,17 +371,5 @@ class Geolocator {
 	private function firstIp() {
 		reset($this->ips);
 		return key($this->ips);
-	}
-	
-	/**
-	 * Filters and cleans up an IP/domain input string.
-	 *
-	 * @param $input
-	 * @return string
-	 */
-	private function cleanIpInput($input) {
-		$input = strtolower($input);
-		$input = trim($input);
-		return $input;
 	}
 }

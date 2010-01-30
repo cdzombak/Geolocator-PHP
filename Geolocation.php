@@ -3,7 +3,6 @@
 require_once('Geolocator.php');
 require_once('GeolocationException.php');
 
-
 /**
 	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
 	@version 2.0-alpha-1.9
@@ -125,7 +124,7 @@ class Geolocation {
 	/**
 	 * Returns a human-friendly name for this location.
 	 *
-	 * Formatted like "Ann Arbor, michigan, United States"
+	 * Formatted like "Ann Arbor, Michigan, United States"
 	 *
 	 * @return string
 	 */
