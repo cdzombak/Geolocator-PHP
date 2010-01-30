@@ -222,13 +222,17 @@ class Geolocator {
 	/**
 	 * Get the location for one IP/domain.
 	 *
+	 * If this object represents one location, gets that location.
 	 * Returns a Geolocation object or NULL.
 	 *
 	 * @return mixed
 	 */
-	public function getLocation($ip) {
+	public function getLocation($ip = NULL) {
 		if (!$this->hasData) {
 			$this->lookup();
+		}
+		if ($ip === NULL) {
+			$ip = $this->firstIp();
 		}
 		$ip = $this->cleanIpInput($ip);
 		if (array_key_exists($ip, $this->ips)) {
