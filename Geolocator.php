@@ -4,44 +4,90 @@ require_once('GeolocatorException.php');
 require_once('Geolocation.php');
 
 /**
-	@mainpage
-	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
-	@version 2.0-alpha-1.9
-	@date    January 30, 2010
-	
-	@section USAGE
-	
-	TODO: Complete this Usage section once everything for v2.0 is implemented. 
-	
-	@section DESCRIPTION
-	
-	This class provides an interface to the IP Address Location XML API described
-	at <http://ipinfodb.com/ip_location_api.php>. It requires PHP 5.30+ and cURL.
-	
-	The Web site of this project is: <http://projects.chrisdzombak.net/ipgeolocationphp>
-	
-	@section LICENSE
+ * @mainpage
+ * @author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
+ * @version 2.0-alpha-2
+ * @date    January 30, 2010
+ * 
+ * The Geolocator class is designed to be very versatile.
+ * 
+ * It can be used easily to represent one IP/location:
+ * @code
+ * $locator = new Geolocator($ipAddress);
+ * // set parameters such as precision, timeout, etc. here
+ * $locator->lookup();  // this call is optional, but it improves performance
+ *                      // to do the lookup before you need the data
+ * $location = $locator->getLocation(); // returns Geolocation object
+ * @endcode
+ *
+ * You can also use it to lookup up to 25 IPs/domains at a time:
+ * @code
+ * $locator = new Geolocator(array($ip1, $ip2, $ip3));
+ * $locator->addIp('google.com');
+ * // set parameters like precision, timeout, etc. here
+ * $googleLocation = $locator->getLocation('google.com');
+ * @endcode
+ *
+ * There are two useful getter methods not covered in the examples above:
+ * @code
+ * getAllLocations()
+ * getIps()
+ * @endcode
+ *
+ * Please see the generated API docs for complete documentation on all methods.
+ *
+ * @section ARRAY ARRAY BEHAVIOR
+ *
+ * Geolocator allows some array-like behavior for ease and simplicity of use.
+ *
+ * It is possible to add IPs with the [] (array append) operator:
+ * @code
+ * // initialize Geolocator; add 'google.com' here.
+ * $locator[] = 'google.com';
+ * @endcode
+ *
+ * Once you've added everything you want, it is possible to use the Geolocator
+ * as an array to loop through results.
+ * @code
+ * // initialize Geolocator
+ * foreach ($locator as $key=>$value) {
+ *     // $key   == IP/domain
+ *     // $value == Geolocation object for that IP/domain
+ * }
+ * @endcode
+ *
+ * It is also possible to lookup one location with the array offset operator:
+ * @code
+ * // initialize Geolocator; add $ipAddress here.
+ * $location = $locator[$ipAddress']; // returns Geolocation object
+ * @endcode
+ * 
+ * @section ABOUT
+ *
+ * This class requires PHP 5.30+ and cURL.
+ * 
+ * The Web site of this project is: <http://projects.chrisdzombak.net/ipgeolocationphp>
+ * 
+ * @section LICENSE
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * (The GPL is found in the text file COPYING which should accompany this
+ * class.)
+ */
 
-	(c) 2009-2010 Chris Dzombak
-	
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-	
-	(The GPL is found in the text file COPYING which should accompany this
-	class.)
-*/
-
-class Geolocator {
+class Geolocator extends ArrayObject {
 	
 	const CONNECT_TIMEOUT     = -1;  /**< Identifies a connect timeout. @see Geolocator::setTimeout() */
 	const TRANSFER_TIMEOUT    = -2;  /**< Identifies a transfer timeout @see Geolocator::setTimeout() */
@@ -109,6 +155,17 @@ class Geolocator {
 		}
 		
 		return true;
+	}
+	
+	/**
+	 * Removes an IP or domain from the Geolocator.
+	 *
+	 * @param $ip the IP/domain to remove
+	 * @return void
+	 */
+	public function removeIp($ip) {
+		$ip = $this->cleanIpInput($ip);
+		unset($this->ips[$ip]);
 	}
 	
 	/**
@@ -192,17 +249,6 @@ class Geolocator {
 			$toReturn[] = $key;
 		}
 		return $toReturn;
-	}
-	
-	/**
-	 * Get the number of IPs/domains represented by the Geolocator.
-	 *
-	 * Use to make sure you don't add more than 25.
-	 *
-	 * @return int
-	 */
-	public function getIpCount() {
-		return count($this->ips);
 	}
 	
 	/**
@@ -376,4 +422,49 @@ class Geolocator {
 		reset($this->ips);
 		return key($this->ips);
 	}
+	
+	// Implementing ArrayObject functionality:
+	
+	public function append($value) {
+		return $this->offsetSet(NULL, $value);
+	}
+	
+	/**
+	 * Adds an IP/domain to this object.
+	 *
+	 * If $index is NULL, the $value is added (eg. if you used $locator[] = $ip)
+	 * If $index is not NULL, $index is added (eg. if you said $locator[$ip] = NULL)
+	 * 
+	 * @param $index
+	 * @param $value
+	 * @throws GeolocatorException
+	 * @return void
+	 */
+	public function offsetSet($index, $value) {
+		$add = ($index === NULL) ? $value : $index;
+		if (!$this->addIp($add)) {
+			throw new GeolocatorException('Appending IP/domain to Geolocator failed.');
+			// See addIp method for possible failure reasons
+		}
+	}
+	
+	public function count() {
+		return count($this->ips);
+	}
+	
+	public function offsetExists($index) {
+		return array_key_exists($this->cleanIpInput($index), $this->ips);
+	}
+	
+	public function offsetGet($index) {
+		return $this->getLocation($index);
+	}
+	
+	public function offsetUnset($index) {
+		$this->removeIp($index);
+	}
+	
+	/**
+	 *  @TODO getIterator, getIteratorClass, setIteratorClass
+	 */
 }

@@ -1,13 +1,14 @@
 TODO:
 
-* 2.0-ALPHA-2: Iterator/array functionality (lookup is performed automatically when it's first accessed)
-  * http://us3.php.net/manual/en/class.arrayobject.php
-  * http://www.php.net/manual/en/language.oop5.iterations.php
-  * http://us2.php.net/manual/en/class.iterator.php
-  * http://pecl.php.net/package/operator
-* 2.0-ALPHA-2: Overall docs on how the class now works
+* 2.0-ALPHA-2.5: Finish iterator functionality (NOT done in 2.0-alpha-2)
 
-* 2.0-ALPHA-3: Get rid of 25-limitation; do multiple reqs as necessary
+* 2.0-ALPHA-3: Get rid of 25-lookup limitation; do multiple reqs as necessary
+* 2.0-ALPHA-3: Do not require that constructor take an argument
+* 2.0-ALPHA-3: Allow getLocation() to auto-add to $ips as well
 
 * 2.0-BETA: Consider using phpDocumentor for docs. This looks like it'll be painful on Windows, so I'll need
   to get it set up in a *nix environment.
+* 2.0-BETA: Better lookup methods for efficiency (only do what we need first, then do the rest?)
+* 2.0-BETA: Unbreak 1.x compatibility
+* 2.0-BETA: implement ArrayObject sort functions?
+* 2.0-BETA: implement exchangeArray, getArrayCopy ?

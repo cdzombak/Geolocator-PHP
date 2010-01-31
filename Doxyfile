@@ -613,7 +613,8 @@ RECURSIVE              = YES
 # excluded from the INPUT source files. This way you can easily exclude a 
 # subdirectory from a directory tree whose root is specified with the INPUT tag.
 
-EXCLUDE                = 
+EXCLUDE                = D:/Projects/geolocator-php/Geolocator-PHP/.git \
+                         D:/Projects/geolocator-php/Geolocator-PHP/SimpleGeolocatorTest.php
 
 # The EXCLUDE_SYMLINKS tag can be used select whether or not files or 
 # directories that are symbolic links (a Unix filesystem feature) are excluded 
