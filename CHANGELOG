@@ -1,3 +1,12 @@
+2.0-alpha-1 -> 2.0-alpha-2.5
+* Implements iterator functionality
+* Better functionality when only one location is represented
+* cleanIpInput() is now a public static method
+* Implements general array functionality
+* Improves documentation
+* Returns Geolocation objects instead of arrays
+* Some other small changes; see the docs for full details
+
 1.0 -> 2.0-alpha-1
 * Not API-compatible with v1
 * Name changed to Geolocator PHP

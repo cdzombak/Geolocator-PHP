@@ -6,8 +6,8 @@ require_once('Geolocation.php');
 /**
  * @mainpage
  * @author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
- * @version 2.0-alpha-2
- * @date    January 30, 2010
+ * @version 2.0-alpha-2.5
+ * @date    February 4, 2010
  * 
  * The Geolocator class is designed to be very versatile.
  * 
@@ -35,8 +35,6 @@ require_once('Geolocation.php');
  * @endcode
  *
  * Please see the generated API docs for complete documentation on all methods.
- *
- * @section ARRAY ARRAY BEHAVIOR
  *
  * Geolocator allows some array-like behavior for ease and simplicity of use.
  *
@@ -69,6 +67,8 @@ require_once('Geolocation.php');
  * The Web site of this project is: <http://projects.chrisdzombak.net/ipgeolocationphp>
  * 
  * @section LICENSE
+ *
+ * This software is copyright 2009-2010 Chris Dzombak.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ require_once('Geolocation.php');
  * class.)
  */
 
-class Geolocator extends ArrayObject {
+class Geolocator extends ArrayObject implements Iterator {
 	
 	const CONNECT_TIMEOUT     = -1;  /**< Identifies a connect timeout. @see Geolocator::setTimeout() */
 	const TRANSFER_TIMEOUT    = -2;  /**< Identifies a transfer timeout @see Geolocator::setTimeout() */
@@ -103,6 +103,8 @@ class Geolocator extends ArrayObject {
 	
 	private $connectTimeout   = 2;  /**< cURL connect timeout (seconds) */
 	private $transferTimeout  = 3;  /**< cURL transfer timeout (seconds) */
+	
+	private $iterCurrentKey;
 	
 	const PRIMARY_SERVER      = 'http://ipinfodb.com/';
 	const BACKUP_SERVER       = 'http://backup.ipinfodb.com/';
@@ -129,6 +131,7 @@ class Geolocator extends ArrayObject {
 		} else {
 			$this->addIp($request);
 		}
+		$this->rewind();
 	}
 	
 	/**
@@ -358,7 +361,9 @@ class Geolocator extends ArrayObject {
 		return $input;
 	}
 	
+	//
 	// Private functions:
+	//
 	
 	/**
 	 * Parses a given array of locations into the $this->ips array.
@@ -423,7 +428,9 @@ class Geolocator extends ArrayObject {
 		return key($this->ips);
 	}
 	
+	//
 	// Implementing ArrayObject functionality:
+	//
 	
 	public function append($value) {
 		return $this->offsetSet(NULL, $value);
@@ -464,7 +471,40 @@ class Geolocator extends ArrayObject {
 		$this->removeIp($index);
 	}
 	
-	/**
-	 *  @TODO getIterator, getIteratorClass, setIteratorClass
-	 */
+	public function getIterator() {
+		return $this;
+	}
+	
+	//
+	// Iterator:
+	//
+	
+	public function current () {
+		if (!$this->hasData) {
+			$this->lookup();
+		}
+		return $this->ips[$this->iterCurrentKey];
+	}
+	
+	public function key() {
+		return $this->iterCurrentKey;
+	}
+	
+	public function next() {
+		if (next($this->ips) === FALSE) {
+			// @TODO this is kind of a hack and should probably be fixed
+			$this->iterCurrentKey = '000';	
+		} else {
+			$this->iterCurrentKey = key($this->ips);
+		}
+	}
+	
+	public function rewind() {
+		reset($this->ips);
+		$this->iterCurrentKey = key($this->ips);
+	}
+	
+	public function valid() {
+		return array_key_exists($this->iterCurrentKey, $this->ips);
+	}
 }

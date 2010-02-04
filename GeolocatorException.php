@@ -2,7 +2,7 @@
 
 /**
 	@author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
-	@version 2.0-alpha-2
+	@version 2.0-alpha-2.5
 	@date    January 30, 2010
 	
 	@section DESCRIPTION

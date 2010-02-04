@@ -5,12 +5,14 @@ require_once('GeolocationException.php');
 
 /**
  * @author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
- * @version 2.0-alpha-2
+ * @version 2.0-alpha-2.5
  * @date    January 30, 2010
  * 
  * This class provides an easy way to represent and use a geolocation.
  * 
  * @section LICENSE
+ *
+ * This software is copyright 2009-2010 Chris Dzombak.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
