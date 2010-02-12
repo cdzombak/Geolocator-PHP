@@ -1,6 +1,7 @@
 TODO:
 
 * 2.0-ALPHA-3: Get rid of 25-lookup limitation; do multiple reqs as necessary
+* 2.0-ALPHA-3: Allow use of new precise TZ data from API
 * 2.0-ALPHA-3: Do not require that constructor take an argument
 * 2.0-ALPHA-3: Allow getLocation() to auto-add to $ips as well
 
