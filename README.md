@@ -3,8 +3,6 @@ Geolocator is a PHP class which provides an easy-to-use interface to the IP Addr
 
 The class aims to be easy-to-use, versatile, and well-documented. It requires PHP 5.30 or greater, compiled with cURL support.
 
-To get updates on the software, you may [subscribe to my blog](http://chris.dzombak.name/a/category/geolocator-php/) or [subscribe to the Freshmeat page](http://freshmeat.net/projects/ipgeolocation-php-class) (requires a Freshmeat account).
-
 ## Current Versions ##
 The current and development versions are maintained on Github: http://github.com/cdzombak/Geolocator-PHP
 
@@ -16,7 +14,7 @@ Alpha versions of v2 of Geolocator support multiple lookups and many new feature
 * Changelog: [CHANGELOG on Github](http://github.com/cdzombak/Geolocator-PHP/blob/master/CHANGELOG)
 * Todo list: [TODO on Github](http://github.com/cdzombak/Geolocator-PHP/blob/master/TODO)
 
-## Copyrights and Licensing ##
+## Licensing ##
 The class is licensed under the GPLv3.  A copy of the GPL is in the LICENSE file provided with this distribution.
 
 ## Author ##
