@@ -1,21 +1,19 @@
 # Geolocator-PHP #
-Geolocator is a PHP class which provides an easy-to-use interface to the IP Address Location XML API described at [ipinfodb.com](http://ipinfodb.com/ip_location_api.php). This API allows you to find the city, state/region, country, and approximate latitude/longitude associated with an IP address or domain.
 
-The class aims to be easy-to-use, versatile, and well-documented. It requires PHP 5.30 or greater, compiled with cURL support.
+Geolocator provides an easy-to-use, versatile, object-oriented interface to the IP Location API provided by [ipinfodb.com](http://ipinfodb.com/ip_location_api.php). This API allows you to find the city, state/region, country, and approximate latitude/longitude associated with an IP address or domain.
 
-## Current Versions ##
-The current and development versions are maintained on Github: http://github.com/cdzombak/Geolocator-PHP
+It requires PHP [5.3.0](http://php.net/releases/5_3_0.php) or greater, with [cURL](http://php.net/manual/en/book.curl.php) and [JSON](http://php.net/manual/en/book.json.php) support. (It may work with less than v5.3.0, but this is not supported.)
 
-* Current Version: [1.0 commit 85926736](http://github.com/cdzombak/Geolocator-PHP/commit/859267360aeb3a7012b1158c3812f4dbabb610fa)
-* Current Development Version: [2.0-alpha-2.5](http://github.com/cdzombak/Geolocator-PHP/tree/2.0-a2.5)
+## Current Versions
 
-Alpha versions of v2 of Geolocator support multiple lookups and many new features. See the CHANGELOG file and the history on Github for a complete list of changes. Generated API documentation is being updated as development proceeds.
+The current and development versions [are maintained on Github](http://github.com/cdzombak/Geolocator-PHP).
 
-* Changelog: [CHANGELOG on Github](http://github.com/cdzombak/Geolocator-PHP/blob/master/CHANGELOG)
-* Todo list: [TODO on Github](http://github.com/cdzombak/Geolocator-PHP/blob/master/TODO)
+There is not currently a stable working version. v3 is currently in development and is stable enough for development.
 
-## Licensing ##
-The class is licensed under the GPLv3.  A copy of the GPL is in the LICENSE file provided with this distribution.
+# Licensing
 
-## Author ##
+The project is dual-licensed under the MIT license and the GPLv3.
+
+# Author
+
 This software was written by [Chris Dzombak](http://chris.dzombak.name).

@@ -1,4 +1,5 @@
-2.0-alpha-1 -> 2.0-alpha-2.5
+# 2.0-alpha-1 -> 2.0-alpha-2.5
+
 * Implements iterator functionality
 * Better functionality when only one location is represented
 * cleanIpInput() is now a public static method
@@ -7,7 +8,8 @@
 * Returns Geolocation objects instead of arrays
 * Some other small changes; see the docs for full details
 
-1.0 -> 2.0-alpha-1
+# 1.0 -> 2.0-alpha-1
+
 * Not API-compatible with v1
 * Name changed to Geolocator PHP
 * one Geolocator can be used to find multiple locations in one lookup
@@ -19,14 +21,14 @@
 * Note: I considered adding some form of caching to this system earlier, but I've since 
   decided caching would be out of this project's scope.
 
-0.99 -> 1.0
+# 0.99 -> 1.0
 
 * Fixed some whitespace/formatting issues
 * Add some @doc tags to documentation
 * Removed problematic invisible characters from beginning of file
 * Moved to git/github for SCM
 
-0.9 -> 0.99
+# 0.9 -> 0.99
 
 * Added a bit of documentation about region codes.
   Basically, they seem to be internally useful to the API, but your app

@@ -5,9 +5,11 @@ require_once('Geolocation.php');
 
 /**
  * @mainpage
- * @author  Chris Dzombak <chris@chrisdzombak.net> <http://chris.dzombak.name>
- * @version 2.0-alpha-2.5
- * @date    February 4, 2010
+ * @author  Chris Dzombak
+ * @version 
+ * @date    
+ * 
+ * TODO: update these and all other docs once v3-beta-1 is ready
  * 
  * The Geolocator class is designed to be very versatile.
  * 
@@ -62,29 +64,16 @@ require_once('Geolocation.php');
  * 
  * @section ABOUT
  *
- * This class requires PHP 5.30+ and cURL.
+ * This class requires PHP 5.3.0 or better, with JSON and cURL support.
  * 
- * The Web site of this project is: <http://projects.chrisdzombak.net/ipgeolocationphp>
+ * The Web site of this project is <https://github.com/cdzombak/Geolocator-PHP>
  * 
  * @section LICENSE
  *
- * This software is copyright 2009-2010 Chris Dzombak.
+ * This software is copyright 2011 Chris Dzombak. This software is dual-licensed under
+ * the MIT license and the GPLv3.
  * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * (The GPL is found in the text file COPYING which should accompany this
- * class.)
+ * For additional info, see <https://github.com/cdzombak/Geolocator-PHP>.
  */
 
 class Geolocator extends ArrayObject implements Iterator {
