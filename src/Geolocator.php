@@ -1,17 +1,19 @@
 <?php
 
 require_once('GeolocatorException.php');
-require_once('Geolocation.php');
+require_once('Location.php');
 
 /**
  * @mainpage
  * @author  Chris Dzombak
  * @version 
- * @date    
- * 
- * TODO: update these and all other docs once v3-beta-1 is ready
+ * @date    2011-05-11
  * 
  * The Geolocator class is designed to be very versatile.
+ * 
+ * Note that "IP", used in these docs and these API methods, really means "IP or Domain".
+ *
+ * Note special handling for only one IP (getLocation)
  * 
  * It can be used easily to represent one IP/location:
  * @code
@@ -66,7 +68,7 @@ require_once('Geolocation.php');
  *
  * This class requires PHP 5.3.0 or better, with JSON and cURL support.
  * 
- * The Web site of this project is <https://github.com/cdzombak/Geolocator-PHP>
+ * The website for this project is <https://github.com/cdzombak/Geolocator-PHP>
  * 
  * @section LICENSE
  *
@@ -78,75 +80,67 @@ require_once('Geolocation.php');
 
 class Geolocator extends ArrayObject implements Iterator {
 	
-	const CONNECT_TIMEOUT     = -1;  /**< Identifies a connect timeout. @see Geolocator::setTimeout() */
-	const TRANSFER_TIMEOUT    = -2;  /**< Identifies a transfer timeout @see Geolocator::setTimeout() */
+	const CONNECT_TIMEOUT      = -1;  /**< Identifies a connect timeout. @see Geolocator::setTimeout() */
+	const TRANSFER_TIMEOUT     = -2;  /**< Identifies a transfer timeout @see Geolocator::setTimeout() */
 	
-	const PRECISION_CITY      = 1;  /**< @see Geolocator::setPrecision() */
-	const PRECISION_COUNTRY   = 2;  /**< @see Geolocator::setPrecision() */
+	const PRECISION_CITY       = 1;  /**< @see Geolocator::setPrecision() */
+	const PRECISION_COUNTRY    = 2;  /**< @see Geolocator::setPrecision() */
 	
-	private $ips              = array();  /**< IP addresses represented by the object. array. */
-	private $hasData          = false;    /**< Whether the geolocator has found valid data */
-	private $attemptedLookup  = false;    /**< Whether the geolocator has attempted a lookup */
-	private $precision        = self::PRECISION_CITY;   /**< desired lookup precision */
-	private $useBackupFirst   = false;    /**< Whether to use the backup server first (for better Europe performance) */
+	protected static $endpoints = array(
+		PRECISION_CITY    => 'http://api.ipinfodb.com/v3/ip-city/',
+		PRECISION_COUNTRY => 'http://api.ipinfodb.com/v3/ip-country/'
+	);
 	
-	private $connectTimeout   = 2;  /**< cURL connect timeout (seconds) */
-	private $transferTimeout  = 3;  /**< cURL transfer timeout (seconds) */
+	protected $iterCurrentKey  = 0;
+	protected $connectTimeout  = 4;
+	protected $transferTimeout = 4;
+	protected $precision       = self::PRECISION_CITY;
+	protected $apiKey          = NULL;
+	protected $geodata         = array();  /**< IP addresses represented by the object. Indexed by IP. 
+	                                            Each entry should have 2 keys: dataGood, location */
+	private $curl              = NULL;
 	
-	private $iterCurrentKey;
-	
-	const PRIMARY_SERVER      = 'http://ipinfodb.com/';
-	const BACKUP_SERVER       = 'http://backup.ipinfodb.com/';
-	const IPQUERY             = 'ip_query.php';
-	const IPQUERY_2           = 'ip_query2.php';
-	const IPQUERY_COUNTRY     = 'ip_query_country.php';
-	const IPQUERY_2_COUNTRY   = 'ip_query2_country.php';
 	
 	/**
-	 * Geolocator constructor.
 	 * 
-	 * @param $request String of one IP/domain to lookup OR an array of IPs/domains to lookup
-	 * @throws GeolocatorException
-	 * @return void
 	 */
-	function __construct($request) {
-		// @TODO eventually, should not require that something be passed in
-		if (is_array($request)) {
-			foreach ($request as $ip) {
-				if(!$this->addIp($ip)) {
-					throw new GeolocatorException('Too many IPs added. Maximum: 25');
-				}
+	function __construct($_apiKey) {
+		$this->apiKey = $_apikey;
+		$this->rewind();
+	}
+	
+	/**
+	 * 
+	 */
+	function __construct($_apiKey, $_firstParam) {
+		$this->apiKey = $_apikey;
+		
+		if (is_array($_firstParam)) {
+			foreach ($_firstParam as $ip) {
+				$this->addIp($ip);
 			}
 		} else {
-			$this->addIp($request);
+			$this->addIp($_firstParam);
 		}
+		
 		$this->rewind();
 	}
 	
 	/**
 	 * Adds an IP or domain to the Geolocator.
 	 *
-	 * Returns TRUE for success; FALSE on failure (eg. if too many were added).
-	 * A maximum of 25 may be added to a Geolocator.
-	 *
 	 * @param $ip The IP or domain to look up
-	 * @return bool
+	 * @return void
 	 */ 
 	public function addIp($ip) {
-		if(count($this->ips) >= 25) {
-			return false;
-		}
-		
-		$this->hasData = false;
-		$this->attemptedLookup = false;
-		
 		$ip = $this->cleanIpInput($ip);
 		
-		if (!array_key_exists($ip, $this->ips)) {
-			$this->ips[$ip] = NULL;
-		}
+		$this->geodata[$ip] = array(
+			'dataGood' => false,
+			'location' => NULL
+		);
 		
-		return true;
+		return $this;
 	}
 	
 	/**
@@ -157,31 +151,18 @@ class Geolocator extends ArrayObject implements Iterator {
 	 */
 	public function removeIp($ip) {
 		$ip = $this->cleanIpInput($ip);
-		unset($this->ips[$ip]);
-	}
-	
-	/**
-	 * Tells the Geolocator whether to lookup the IP on the backup server first.
-	 *
-	 * This could be ueful for Europe-based services, since the backup server
-	 * is located in Germany and the primary is located in Canada.  Using the backup
-	 * server for European apps will give you slightly higher performance.
-	 *
-	 * @param $useBackupFirst
-	 * @throws GeolocatorException
-	 * @return void
-	 */
-	public function setUseBackupFirst($useBackupFirst) {
-		if (!is_bool($useBackupFirst)) {
-			throw new GeolocatorException('Invalid choice specified for useBackupFirst');
-		}
-		$this->useBackupFirst = $useBackupFirst;
+		unset($this->geodata[$ip]);
+		
+		return $this;
 	}
 	
 	/**
 	 * Sets the desired connect or transfer timeout.
 	 *
-	 * (Defaults are 2s for connect, 3s for transfer.)
+	 * (Defaults are 4s for connect, 4s for transfer.)
+	 * 
+	 * This can only be changed before you get the first result from the Geolocator.
+	 * (After the first result, the cURL connection is cached and reused for performance.)
 	 *
 	 * @param $timeoutType one of Geolocator::CONNECT_TIMEOUT , Geolocator::TRANSFER_TIMEOUT
 	 * @param $time timeout value
@@ -189,9 +170,6 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @return void
 	 */
 	public function setTimeout($timeoutType, $time) {
-		$this->hasData = false;
-		$this->attemptedLookup = false;
-		
 		if (!is_numeric($time) || $time < 0) {
 			throw new GeolocatorException ('Invalid time specified.');
 		}
@@ -202,6 +180,8 @@ class Geolocator extends ArrayObject implements Iterator {
 		} else {
 			throw new GeolocatorException ('Invalid timeout type specified.');
 		}
+		
+		return $this;
 	}
 	
 	/**
@@ -214,30 +194,30 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @return void
 	 */
 	public function setPrecision($precision) {
-		$this->hasData = false;
-		$this->attemptedLookup = false;
-		
 		if ($precision == self::PRECISION_CITY || $precision == self::PRECISION_COUNTRY) {
+			if ($this->precision == self::PRECISION_COUNTRY && $precision == self::PRECISION_CITY) {
+				foreach($this->geodata as &$data) {
+					$data['dataGood'] = false;
+				}
+			}
 			$this->precision = $precision;
 		} else {
 			throw new GeolocatorException ('Invalid precision specified.');
 		}
+
+		return $this;
 	}
 	
 	/**
 	 * Gets the IPs/domains represented by this object.
 	 *
-	 * Returns a string if the object represents one IP/domain.
-	 * Otherwise, returns a numerically-indexed array of IPs/domains.
+	 * Returns a numerically-indexed array of IPs/domains.
 	 *
 	 * @return mixed
 	 */	 	 	 	 	
 	public function getIps() {
-		if (count($this->ips) == 1) {
-			return $this->firstIp();
-		}
 		$toReturn = array();
-		foreach ($this->ips as $key=>$val) {
+		foreach ($this->geodata as $key=>$val) {
 			$toReturn[] = $key;
 		}
 		return $toReturn;
@@ -251,10 +231,15 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @return array
 	 */
 	public function getAllLocations() {
-		if (!$this->hasData) {
-			$this->lookup();
+		$this->lookupAll();
+		
+		$toReturn = array();
+		
+		foreach ($this->geodata as $ip=>$value) {
+			$toReturn[$ip] = $value['location'];
 		}
-		return $this->ips;
+		
+		return $toReturn;
 	}
 	
 	/**
@@ -266,76 +251,60 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @return mixed
 	 */
 	public function getLocation($ip = NULL) {
-		if (!$this->hasData) {
-			$this->lookup();
-		}
 		if ($ip === NULL) {
 			$ip = $this->firstIp();
 		}
+		
 		$ip = $this->cleanIpInput($ip);
-		if (array_key_exists($ip, $this->ips)) {
-			return $this->ips[$ip];
+		
+		if (array_key_exists($ip, $this->geodata)) {
+			if (!$this->geodata[$ip]['dataGood']) {
+				$this->lookup($ip);
+			}
+			return $this->geodata['ip']['location'];
+		} else {
+			throw new GeolocatorException("IP/domain '$ip' was not found in the Geolocator");
 		}
+		
 		return NULL;
 	}
 	
 	/**
-	 * Performs the lookup of all desired IPs/domains.
-	 *
-	 * Should be called once you know you're done adding IPs so that the lookup data
-	 * are ready when you need them.
-	 * Returns TRUE if success, FALSE if failure.
+	 * Gets data for all desired IPs/domains.
+	 * 
+	 * Does not redownload data for IPs we already have.
 	 *
 	 * @throws GeolocatorException
-	 * @return bool
+	 * @return void
 	 */
-	public function lookup() {
-		$endpointFile = NULL;
-		switch ($this->precision) {
-			case self::PRECISION_CITY:
-				$endpointFile = self::IPQUERY_2;
-				break;
-			case self::PRECISION_COUNTRY:
-				$endpointFile = self::IPQUERY_2_COUNTRY;
-				break;
-			default:
-				throw new GeolocatorException('Internal error: $this->precision is invalid: ' . $this->precision);
-				break;
-		}
-		
-		if (!$this->useBackupFirst) {
-			$endpoint       = self::PRIMARY_SERVER . $endpointFile;
-			$backupEndpoint = self::BACKUP_SERVER . $endpointFile;
-		} else {
-			$backupEndpoint = self::PRIMARY_SERVER . $endpointFile;
-			$endpoint       = self::BACKUP_SERVER . $endpointFile;
-		}
-		
-		$ipString = '';
-		if (count($this->ips) == 1) {
-			$ipString = $this->firstIp();
-		} else {
-			foreach ($this->ips as $key=>$value) {
-				$ipString .= ',' . $key;
+	public function lookupAll() {
+		foreach($this->geodata as $ip => $value) {
+			if (!$value['dataGood']) {
+				$this->lookup($ip);
 			}
-			$ipString = substr($ipString, 1);
 		}
-		
+
+		return $this;
+	}
+	
+	/**
+	 * Gets data for the given IPs/domain.
+	 * 
+	 * Will always refresh data for the given IP/domain.
+	 *
+	 * @throws GeolocatorException
+	 * @return void
+	 */
+	public function lookup($ip) {
+		$endpoint = $this->endpoints[$this->precision];
 		$result = NULL;
-		try {
-			$result = $this->curlRequest($ipString, $endpoint);
-		} catch (GeolocatorException $e) {
-			try {
-				$result = $this->curlRequest($ipString,$backupEndpoint);
-			} catch (GeolocatorException $e) {
-				throw $e;
-			}
-		}
+
+		$result = $this->curlRequest($ipString, $endpoint);
 		
-		$this->attemptedLookup = true;
+		$this->geodata[$ip]['location'] = new Location($result, $this->precision);
+		$this->geodata[$ip]['dataGood'] = true;
 		
-		$this->parseIntoIps($result);
-		return true;
+		return $this;
 	}
 	
 	/**
@@ -344,36 +313,10 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @param $input
 	 * @return string
 	 */
-	public static function cleanIpInput($input) {
+	protected function cleanIpInput($input) {
 		$input = strtolower($input);
 		$input = trim($input);
 		return $input;
-	}
-	
-	//
-	// Private functions:
-	//
-	
-	/**
-	 * Parses a given array of locations into the $this->ips array.
-	 *
-	 * error_log()s anything for which the API does not return a status of OK.
-	 *
-	 * @param $locArray array of locations returned from API
-	 * @return void
-	 */
-	private function parseIntoIps($locArray) {
-		$i = 0;
-		foreach ($this->ips as &$ip) {
-			if ($locArray->Locations[$i]->Status == 'OK') {
-				$ip = new Geolocation($locArray->Locations[$i], $this->precision);
-			} else {
-				error_log('API returned error for ' . $locArray->Locations[$i]->Ip . ' : ' . $locArray->Locations[$i]->Status . ' . Precision: ' . $this->precision);
-				$ip = NULL;
-			}
-			$i++;
-		}
-		$this->hasData = true;
 	}
 	
 	/**
@@ -384,27 +327,34 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @throws GeolocatorException
 	 * @return array array of API return
 	 */
-	private function curlRequest($ipQueryString, $endpoint) {
-		$qs = $endpoint . '?ip=' . $ipQueryString . '&output=json';
-		$ch = curl_init();
-			curl_setopt ($ch, CURLOPT_URL, $qs);
-			curl_setopt ($ch, CURLOPT_FAILONERROR, TRUE);
-			curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, TRUE);
-			curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
-			curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, $this->connectTimeout);
-			curl_setopt ($ch, CURLOPT_TIMEOUT, $this->transferTimeout);
+	protected function curlRequest($ip, $endpoint) {
+		$qs = $endpoint . '?ip=' . $ip . '&format=json&key=' . $this->apiKey;
+		
+		if ($this->curl === NULL) {
+			$this->curl = curl_init();
+			curl_setopt ($this->curl, CURLOPT_FAILONERROR, TRUE);
+			curl_setopt ($this->curl, CURLOPT_FOLLOWLOCATION, TRUE);
+			curl_setopt ($this->curl, CURLOPT_RETURNTRANSFER, TRUE);
+			curl_setopt ($this->curl, CURLOPT_CONNECTTIMEOUT, $this->connectTimeout);
+			curl_setopt ($this->curl, CURLOPT_TIMEOUT, $this->transferTimeout);
+		}	
+		
+		curl_setopt ($this->curl, CURLOPT_URL, $qs);
 		
 		$json = curl_exec($ch);
 		
 		if(curl_errno($ch) || $json === FALSE) {
 			$err = curl_error($ch);
-			curl_close($ch);
 			throw new GeolocatorException('cURL failed. Error: ' . $err);
 		}
-
-		curl_close($ch);
 		
-		return json_decode($json);
+		$response = json_decode($json);
+		
+		if ($response->statusCode != 'OK') {
+			throw new GeolocatorException('API returned error: ' . $response->statusMessage);
+		}
+		
+		return $response;
 	}
 	
 	/**
@@ -412,13 +362,13 @@ class Geolocator extends ArrayObject implements Iterator {
 	 *
 	 * @return string
 	 */
-	private function firstIp() {
+	protected function firstIp() {
 		reset($this->ips);
 		return key($this->ips);
 	}
 	
 	//
-	// Implementing ArrayObject functionality:
+	// ArrayObject:
 	//
 	
 	public function append($value) {
@@ -433,23 +383,19 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * 
 	 * @param $index
 	 * @param $value
-	 * @throws GeolocatorException
 	 * @return void
 	 */
 	public function offsetSet($index, $value) {
 		$add = ($index === NULL) ? $value : $index;
-		if (!$this->addIp($add)) {
-			throw new GeolocatorException('Appending IP/domain to Geolocator failed.');
-			// See addIp method for possible failure reasons
-		}
+		$this->addIp($add);
 	}
 	
 	public function count() {
-		return count($this->ips);
+		return count($this->geodata);
 	}
 	
 	public function offsetExists($index) {
-		return array_key_exists($this->cleanIpInput($index), $this->ips);
+		return array_key_exists($this->cleanIpInput($index), $this->geodata);
 	}
 	
 	public function offsetGet($index) {
@@ -468,11 +414,8 @@ class Geolocator extends ArrayObject implements Iterator {
 	// Iterator:
 	//
 	
-	public function current () {
-		if (!$this->hasData) {
-			$this->lookup();
-		}
-		return $this->ips[$this->iterCurrentKey];
+	public function current() {
+		return $this->getLocation($this->iterCurrentKey);
 	}
 	
 	public function key() {
@@ -480,20 +423,19 @@ class Geolocator extends ArrayObject implements Iterator {
 	}
 	
 	public function next() {
-		if (next($this->ips) === FALSE) {
-			// @TODO this is kind of a hack and should probably be fixed
-			$this->iterCurrentKey = '000';	
+		if (next($this->geodata) === FALSE) {
+			$this->iterCurrentKey = NULL;	
 		} else {
-			$this->iterCurrentKey = key($this->ips);
+			$this->iterCurrentKey = key($this->geodata);
 		}
 	}
 	
 	public function rewind() {
-		reset($this->ips);
-		$this->iterCurrentKey = key($this->ips);
+		reset($this->geodata);
+		$this->iterCurrentKey = key($this->geodata);
 	}
 	
 	public function valid() {
-		return array_key_exists($this->iterCurrentKey, $this->ips);
+		return array_key_exists($this->iterCurrentKey, $this->geodata);
 	}
 }
