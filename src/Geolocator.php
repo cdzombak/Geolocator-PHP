@@ -78,7 +78,10 @@ require_once('Location.php');
  * For additional info, see <https://github.com/cdzombak/Geolocator-PHP>.
  */
 
-class Geolocator extends ArrayObject implements Iterator {
+// NOTE: ArrayObject behavior is mostly broken in v3.0-beta-1.
+// Will be completed before v3.0-beta-2.
+
+class Geolocator extends ArrayObject {
 	
 	const CONNECT_TIMEOUT      = -1;  /**< Identifies a connect timeout. @see Geolocator::setTimeout() */
 	const TRANSFER_TIMEOUT     = -2;  /**< Identifies a transfer timeout @see Geolocator::setTimeout() */
@@ -87,8 +90,8 @@ class Geolocator extends ArrayObject implements Iterator {
 	const PRECISION_COUNTRY    = 2;  /**< @see Geolocator::setPrecision() */
 	
 	protected static $endpoints = array(
-		PRECISION_CITY    => 'http://api.ipinfodb.com/v3/ip-city/',
-		PRECISION_COUNTRY => 'http://api.ipinfodb.com/v3/ip-country/'
+		self::PRECISION_CITY    => 'http://api.ipinfodb.com/v3/ip-city/',
+		self::PRECISION_COUNTRY => 'http://api.ipinfodb.com/v3/ip-country/'
 	);
 	
 	protected $iterCurrentKey  = 0;
@@ -104,26 +107,22 @@ class Geolocator extends ArrayObject implements Iterator {
 	/**
 	 * 
 	 */
-	function __construct($_apiKey) {
-		$this->apiKey = $_apikey;
-		$this->rewind();
-	}
-	
-	/**
-	 * 
-	 */
-	function __construct($_apiKey, $_firstParam) {
-		$this->apiKey = $_apikey;
+	function __construct($_apiKey, $_ips=NULL) {
+		$this->apiKey = $_apiKey;
 		
-		if (is_array($_firstParam)) {
-			foreach ($_firstParam as $ip) {
+		if (is_array($_ips)) {
+			foreach ($_ips as $ip) {
 				$this->addIp($ip);
 			}
-		} else {
-			$this->addIp($_firstParam);
+		} else  if (is_string($_ips)) {
+			$this->addIp($_ips);
 		}
 		
 		$this->rewind();
+	}
+
+	static public function instantiate($_apiKey, $_ips=NULL) {
+		return new Geolocator($_apiKey, $_ips);
 	}
 	
 	/**
@@ -254,19 +253,20 @@ class Geolocator extends ArrayObject implements Iterator {
 		if ($ip === NULL) {
 			$ip = $this->firstIp();
 		}
+		if ($ip === NULL) {
+			throw new GeolocatorException("There are no IPs in the Geolocator. (Check that you specified an API key in the constructor.)");
+		}
 		
 		$ip = $this->cleanIpInput($ip);
 		
 		if (array_key_exists($ip, $this->geodata)) {
-			if (!$this->geodata[$ip]['dataGood']) {
+			if ($this->geodata[$ip]['dataGood'] == false) {
 				$this->lookup($ip);
 			}
-			return $this->geodata['ip']['location'];
+			return $this->geodata[$ip]['location'];
 		} else {
 			throw new GeolocatorException("IP/domain '$ip' was not found in the Geolocator");
 		}
-		
-		return NULL;
 	}
 	
 	/**
@@ -296,10 +296,10 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @return void
 	 */
 	public function lookup($ip) {
-		$endpoint = $this->endpoints[$this->precision];
+		$endpoint = self::$endpoints[$this->precision];
 		$result = NULL;
 
-		$result = $this->curlRequest($ipString, $endpoint);
+		$result = $this->curlRequest($ip, $endpoint);
 		
 		$this->geodata[$ip]['location'] = new Location($result, $this->precision);
 		$this->geodata[$ip]['dataGood'] = true;
@@ -341,10 +341,10 @@ class Geolocator extends ArrayObject implements Iterator {
 		
 		curl_setopt ($this->curl, CURLOPT_URL, $qs);
 		
-		$json = curl_exec($ch);
+		$json = curl_exec($this->curl);
 		
-		if(curl_errno($ch) || $json === FALSE) {
-			$err = curl_error($ch);
+		if(curl_errno($this->curl) || $json === FALSE) {
+			$err = curl_error($this->curl);
 			throw new GeolocatorException('cURL failed. Error: ' . $err);
 		}
 		
@@ -363,8 +363,8 @@ class Geolocator extends ArrayObject implements Iterator {
 	 * @return string
 	 */
 	protected function firstIp() {
-		reset($this->ips);
-		return key($this->ips);
+		reset($this->geodata);
+		return key($this->geodata);
 	}
 	
 	//

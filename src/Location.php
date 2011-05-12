@@ -12,7 +12,7 @@ require_once('Geolocator.php');
 
 class Location {
 	
-	protected $location;
+	protected $location = array();
 	protected $precision;
 	protected $ip;
 	
@@ -26,14 +26,16 @@ class Location {
 		$this->precision = $precision;
 		$this->ip = $apiRes->ipAddress;
 		
-		$this->location['countryCode'] = $apiRes->countryName;
+		$this->location['countryCode'] = $apiRes->countryCode;
 		$this->location['country']     = $apiRes->countryName;
-		$this->location['region']      = $apiRes->regionName;
-		$this->location['city']        = $apiRes->cityName;
-		$this->location['postalCode']  = $apiRes->zipCode;
-		$this->location['latitude']    = $apiRes->latitude;
-		$this->location['longitude']   = $apiRes->longitude;
-		$this->location['timeZone']    = $apiRes->timeZone;
+		if ($this->precision == Geolocator::PRECISION_CITY) {
+			$this->location['region']      = $apiRes->regionName;
+			$this->location['city']        = $apiRes->cityName;
+			$this->location['postalCode']  = $apiRes->zipCode;
+			$this->location['latitude']    = $apiRes->latitude;
+			$this->location['longitude']   = $apiRes->longitude;
+			$this->location['timeZone']    = $apiRes->timeZone;
+		}
 	}
 	
 	/**
@@ -47,7 +49,13 @@ class Location {
 	 * @throws Exception
 	 */
 	public function __get($name) {
-		if (array_key_exists($name, $this->location)) {
+		if ($name == 'ip') {
+			return $this->ip;
+		} else if ($name == 'precision') {
+			return $this->precision;
+		} else if ($name == 'location') {
+			return $this->location;
+		} else if (array_key_exists($name, $this->location)) {
 			return $this->location[$name];
 		} else {
 			throw new Exception("Key '$name' does not exist in location array.");
@@ -89,6 +97,9 @@ class Location {
 	 *  timeZone
 	 * @endcode
 	 *
+	 * For country-precision results, *only* the countryCode and country keys
+	 * are set; all others are not present.
+	 *
 	 * Note: for the USA, "region" == "state".
 	 * 
 	 * @return array
@@ -105,12 +116,12 @@ class Location {
 	 * @return string
 	 */
 	public function getFriendlyName() {
-		if ($this->location['city'] === NULL && $this->location['$region'] === NULL)
-			$loc = $country;
+		if ($this->precision == Geolocator::PRECISION_COUNTRY || ($this->location['city'] === NULL && $this->location['region'] === NULL) )
+			$loc = $this->location['country'];
 		else if ($this->location['city'] === NULL)
-			$loc = "$region, $country";
+			$loc = "{$this->location['region']}, {$this->location['country']}";
 		else
-			$loc = "$city, $region, $country";
+			$loc = "{$this->location['city']}, {$this->location['region']}, {$this->location['country']}";
 		return $loc;
 	}
 }
