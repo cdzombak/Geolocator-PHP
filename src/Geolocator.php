@@ -6,7 +6,7 @@ require_once('Location.php');
 /**
  * @mainpage
  * @author  Chris Dzombak
- * @version 
+ * @version 3.0-beta-1
  * @date    2011-05-11
  * 
  * The Geolocator class is very versatile. It provides several ways to retrieve

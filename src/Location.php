@@ -4,7 +4,7 @@ require_once('Geolocator.php');
 
 /**
  * @author  Chris Dzombak
- * @version 
+ * @version 3.0-beta-1
  * @date    2011-05-11
  * 
  * Represents a location returned from the geolocation API.
