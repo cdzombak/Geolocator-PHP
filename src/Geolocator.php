@@ -9,61 +9,31 @@ require_once('Location.php');
  * @version 
  * @date    2011-05-11
  * 
- * The Geolocator class is designed to be very versatile.
+ * The Geolocator class is very versatile. It provides several ways to retrieve
+ * locations for one or many IPs/domains; you can use whatever's easiest for your
+ * application.
  * 
- * Note that "IP", used in these docs and these API methods, really means "IP or Domain".
- *
- * Note special handling for only one IP (getLocation)
+ * Note that "IP", used in these docs and in these API methods, really means
+ * "IP or Domain".
  * 
- * It can be used easily to represent one IP/location:
- * @code
- * $locator = new Geolocator($ipAddress);
- * // set parameters such as precision, timeout, etc. here
- * $locator->lookup();  // this call is optional, but it improves performance
- *                      // to do the lookup before you need the data
- * $location = $locator->getLocation(); // returns Geolocation object
- * @endcode
+ * It can be used easily to get locations for one or multiple IPs. See the
+ * generated API docs for complete documentation on all methods.
  *
- * You can also use it to lookup up to 25 IPs/domains at a time:
- * @code
- * $locator = new Geolocator(array($ip1, $ip2, $ip3));
- * $locator->addIp('google.com');
- * // set parameters like precision, timeout, etc. here
- * $googleLocation = $locator->getLocation('google.com');
- * @endcode
+ * General guide to using the class:
+ * 1. Create the Geolocator object. Set the API key in the constructor.
+ * 2. Add one or multiple IPs/domains.
+ * 3. Access the results.
  *
- * There are two useful getter methods not covered in the examples above:
- * @code
- * getAllLocations()
- * getIps()
- * @endcode
+ * Geolocator allows some array and iterator-like behavior for ease and
+ * simplicity of use (when adding/looking up multiple IPs).
  *
- * Please see the generated API docs for complete documentation on all methods.
+ * All (non-getter) methods are chainable, meaning you can do things like:
+ * $location = Geolocator::instantiate($apiKey, $myIp)->setPrecision(Geolocator::PRECISION_COUNTRY)->getLocation();
  *
- * Geolocator allows some array-like behavior for ease and simplicity of use.
+ * See the examples directory included in this distribution for examples of
+ * using the features of this class, and see the README.md file for an overview
+ * of features.
  *
- * It is possible to add IPs with the [] (array append) operator:
- * @code
- * // initialize Geolocator; add 'google.com' here.
- * $locator[] = 'google.com';
- * @endcode
- *
- * Once you've added everything you want, it is possible to use the Geolocator
- * as an array to loop through results.
- * @code
- * // initialize Geolocator
- * foreach ($locator as $key=>$value) {
- *     // $key   == IP/domain
- *     // $value == Geolocation object for that IP/domain
- * }
- * @endcode
- *
- * It is also possible to lookup one location with the array offset operator:
- * @code
- * // initialize Geolocator; add $ipAddress here.
- * $location = $locator[$ipAddress']; // returns Geolocation object
- * @endcode
- * 
  * @section ABOUT
  *
  * This class requires PHP 5.3.0 or better, with JSON and cURL support.
@@ -105,7 +75,16 @@ class Geolocator extends ArrayObject {
 	
 	
 	/**
+	 * Constructs a Geolocator with the given API key.
 	 * 
+	 * If $_ips is set, adds one or many IPs to the Geolocator's list
+	 * of IPs to look up.
+	 *
+	 * Not chainable; for a chainable construction method, use the static
+	 * instantiate() method.
+	 *
+	 * @param string $_apiKey your API key
+	 * @param array $_ips IP(s) to add to the Geolocator.
 	 */
 	function __construct($_apiKey, $_ips=NULL) {
 		$this->apiKey = $_apiKey;
@@ -121,15 +100,27 @@ class Geolocator extends ArrayObject {
 		$this->rewind();
 	}
 
+	/**
+	 * Returns a Geolocator initialized with the given API key and, if specified,
+	 * the given IPs. (See the Geolocator constructor.)
+	 *
+	 * This method is chainable.
+	 *
+	 * @param string $_apiKey
+	 * @param array|string $_ips
+	 * @return Geolocator
+	 */
 	static public function instantiate($_apiKey, $_ips=NULL) {
 		return new Geolocator($_apiKey, $_ips);
 	}
 	
 	/**
-	 * Adds an IP or domain to the Geolocator.
+	 * Adds an IP to the Geolocator.
 	 *
-	 * @param $ip The IP or domain to look up
-	 * @return void
+	 * Chainable.
+	 *
+	 * @param string $ip IP or domain to add
+	 * @return Geolocator $this
 	 */ 
 	public function addIp($ip) {
 		$ip = $this->cleanIpInput($ip);
@@ -143,10 +134,12 @@ class Geolocator extends ArrayObject {
 	}
 	
 	/**
-	 * Removes an IP or domain from the Geolocator.
+	 * Removes an IP from the Geolocator.
 	 *
-	 * @param $ip the IP/domain to remove
-	 * @return void
+	 * Chainable.
+	 *
+	 * @param string $ip the IP/domain to remove
+	 * @return Geolocator $this
 	 */
 	public function removeIp($ip) {
 		$ip = $this->cleanIpInput($ip);
@@ -157,16 +150,17 @@ class Geolocator extends ArrayObject {
 	
 	/**
 	 * Sets the desired connect or transfer timeout.
-	 *
-	 * (Defaults are 4s for connect, 4s for transfer.)
+	 * Defaults are 4s for connect, 4s for transfer.
 	 * 
 	 * This can only be changed before you get the first result from the Geolocator.
 	 * (After the first result, the cURL connection is cached and reused for performance.)
 	 *
-	 * @param $timeoutType one of Geolocator::CONNECT_TIMEOUT , Geolocator::TRANSFER_TIMEOUT
-	 * @param $time timeout value
+	 * Chainable.
+	 *
+	 * @param int $timeoutType one of Geolocator::CONNECT_TIMEOUT , Geolocator::TRANSFER_TIMEOUT
+	 * @param int $time timeout value
 	 * @throws GeolocatorException
-	 * @return void
+	 * @return Geolocator $this
 	 */
 	public function setTimeout($timeoutType, $time) {
 		if (!is_numeric($time) || $time < 0) {
@@ -185,12 +179,13 @@ class Geolocator extends ArrayObject {
 	
 	/**
 	 * Sets the desired lookup precision.
+	 * Default is city precision.
 	 *
-	 * (Default is city precision.)
+	 * Chainable.
 	 *
-	 * @param $precision one of Geolocator::PRECISION_CITY , Geolocator::PRECISION_COUNTRY
+	 * @param int $precision one of Geolocator::PRECISION_CITY , Geolocator::PRECISION_COUNTRY
 	 * @throws GeolocatorException
-	 * @return void
+	 * @return Geolocator $this
 	 */
 	public function setPrecision($precision) {
 		if ($precision == self::PRECISION_CITY || $precision == self::PRECISION_COUNTRY) {
@@ -208,11 +203,11 @@ class Geolocator extends ArrayObject {
 	}
 	
 	/**
-	 * Gets the IPs/domains represented by this object.
+	 * Gets the IPs/domains represented by the Geolocator.
 	 *
 	 * Returns a numerically-indexed array of IPs/domains.
 	 *
-	 * @return mixed
+	 * @return array
 	 */	 	 	 	 	
 	public function getIps() {
 		$toReturn = array();
@@ -226,6 +221,9 @@ class Geolocator extends ArrayObject {
 	 * Get all locations represented by the Geolocator.
 	 *
 	 * Returns an associative array, indexed by IP/domain, of Geolocation objects.
+	 *
+	 * If lookupAll() was not previously called, this method may block while
+	 * performing network operations.
 	 *
 	 * @return array
 	 */
@@ -244,10 +242,17 @@ class Geolocator extends ArrayObject {
 	/**
 	 * Get the location for one IP/domain.
 	 *
-	 * If this object represents one location, gets that location.
-	 * Returns a Geolocation object or NULL.
+	 * If this object represents only one location, you can pass NULL for $ip
+	 * to get that location.
 	 *
-	 * @return mixed
+	 * If lookup() was not previously called for this IP, this method may block
+	 * while performing network operations.
+	 *
+	 * Returns a Location object.
+	 *
+	 * @param string|NULL $ip the IP to get the location for
+	 * @return Location
+	 * @throws GeolocatorException
 	 */
 	public function getLocation($ip = NULL) {
 		if ($ip === NULL) {
@@ -270,12 +275,17 @@ class Geolocator extends ArrayObject {
 	}
 	
 	/**
-	 * Gets data for all desired IPs/domains.
+	 * Gets data for all desired IPs/domains. The data will be cached for
+	 * subsequent getLocation calls.
 	 * 
-	 * Does not redownload data for IPs we already have.
+	 * Does not redownload data for IPs that were already looked up.
+	 * 
+	 * This method will block while performing network operations.
+	 *
+	 * Chainable.
 	 *
 	 * @throws GeolocatorException
-	 * @return void
+	 * @return Geolocator $this
 	 */
 	public function lookupAll() {
 		foreach($this->geodata as $ip => $value) {
@@ -288,12 +298,18 @@ class Geolocator extends ArrayObject {
 	}
 	
 	/**
-	 * Gets data for the given IPs/domain.
+	 * Gets data for the given IPs/domain. The data will be cached for
+	 * subsequent getLocation calls.
 	 * 
 	 * Will always refresh data for the given IP/domain.
 	 *
+	 * This method will block while performing network operations.
+	 *
+	 * Chainable.
+	 *
+	 * @param string $ip the IP to look up and cache the location
 	 * @throws GeolocatorException
-	 * @return void
+	 * @return Geolocator $this
 	 */
 	public function lookup($ip) {
 		$endpoint = self::$endpoints[$this->precision];
@@ -310,7 +326,7 @@ class Geolocator extends ArrayObject {
 	/**
 	 * Filters and cleans up an IP/domain input string.
 	 *
-	 * @param $input
+	 * @param string $input
 	 * @return string
 	 */
 	protected function cleanIpInput($input) {
@@ -322,8 +338,8 @@ class Geolocator extends ArrayObject {
 	/**
 	 * Performs a cURL request to the API.
 	 *
-	 * @param $ipQueryString the IP string to pass to the API
-	 * @param $endpoint the API endpoint to use
+	 * @param string $ipQueryString the IP string to pass to the API
+	 * @param string $endpoint the API endpoint to use
 	 * @throws GeolocatorException
 	 * @return array array of API return
 	 */
@@ -397,7 +413,11 @@ class Geolocator extends ArrayObject {
 	public function offsetExists($index) {
 		return array_key_exists($this->cleanIpInput($index), $this->geodata);
 	}
-	
+
+	/*
+	 * @see Geolocator::getLocation()
+	 * This method may block for network operations.
+	 */
 	public function offsetGet($index) {
 		return $this->getLocation($index);
 	}
@@ -414,6 +434,10 @@ class Geolocator extends ArrayObject {
 	// Iterator:
 	//
 	
+	/*
+	 * @see Geolocator::getLocation()
+	 * This method may block for network operations.
+	 */
 	public function current() {
 		return $this->getLocation($this->iterCurrentKey);
 	}
